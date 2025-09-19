@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SecureVault - Password Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            font-weight: 300;
+            letter-spacing: 3px;
+        }
+
+        .tagline {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-style: italic;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        input[type="text"], input[type="password"], textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            word-break: break-all;
+            font-family: monospace;
+            display: none;
+        }
+
+        .status {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        /* Hidden elements for key derivation */
+        .key-elem-1 {
+            position: absolute;
+            left: 42px;
+            top: 137px;
+            width: 1px;
+            height: 1px;
+            background-color: rgb(102, 126, 234);
+            opacity: 0;
+        }
+
+        .key-elem-2 {
+            position: absolute;
+            right: 89px;
+            bottom: 203px;
+            width: 1px;
+            height: 1px;
+            background-color: rgb(118, 75, 162);
+            opacity: 0;
+        }
+
+        .key-elem-3 {
+            position: absolute;
+            left: 256px;
+            top: 78px;
+            width: 1px;
+            height: 1px;
+            background-color: rgb(255, 87, 51);
+            opacity: 0;
+        }
+
+        /* Anti-debugging styles */
+        .debug-trap {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Hidden key derivation elements -->
+    <div class="key-elem-1" id="k1"></div>
+    <div class="key-elem-2" id="k2"></div>
+    <div class="key-elem-3" id="k3"></div>
+
+    <div class="container">
+        <div class="logo">
+            <h1>SecureVault</h1>
+        </div>
+        <div class="tagline">Military-Grade Client-Side Encryption</div>
+        
+        <div class="form-group">
+            <label for="website">Website/Service:</label>
+            <input type="text" id="website" placeholder="e.g., gmail.com">
+        </div>
+        
+        <div class="form-group">
+            <label for="username">Username:</label>
+            <input type="text" id="username" placeholder="Enter username">
+        </div>
+        
+        <div class="form-group">
+            <label for="password">Password:</label>
+            <input type="password" id="password" placeholder="Enter password">
+        </div>
+        
+        <div class="form-group">
+            <label for="notes">Notes (Optional):</label>
+            <textarea id="notes" placeholder="Additional notes..."></textarea>
+        </div>
+        
+        <button class="btn" onclick="encryptData()">🔒 Encrypt & Store</button>
+        <button class="btn" onclick="decryptData()">🔓 Decrypt Data</button>
+        
+        <div id="result" class="result"></div>
+        <div class="status" id="status">Ready to secure your data...</div>
+    </div>
+
+    <!-- Debug trap -->
+    <div class="debug-trap" id="debugTrap">
+        console.log("Nice try, but the real challenge is deeper...");
+    </div>
+
+    <script>
+        // Anti-debugging measures
+        let devToolsOpen = false;
+        let debugStart = Date.now();
+        
+        // Check for DevTools
+        setInterval(() => {
+            const threshold = 160;
+            if (window.outerHeight - window.innerHeight > threshold || 
+                window.outerWidth - window.innerWidth > threshold) {
+                if (!devToolsOpen) {
+                    devToolsOpen = true;
+                    console.clear();
+                    console.log("🚫 DevTools detected. Some features may be limited.");
+                }
+            } else {
+                devToolsOpen = false;
+            }
+        }, 1000);
+
+        // Canvas fingerprinting for additional entropy
+        function getCanvasFingerprint() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 200;
+            canvas.height = 50;
+            ctx.textBaseline = 'top';
+            ctx.font = '14px Arial';
+            ctx.fillText('SecureVault Fingerprint', 2, 2);
+            ctx.fillStyle = 'rgba(102, 126, 234, 0.5)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            return canvas.toDataURL().slice(-50);
+        }
+
+        // Extract DOM-based key components
+        function getDOMKey() {
+            const elem1 = document.getElementById('k1');
+            const elem2 = document.getElementById('k2');
+            const elem3 = document.getElementById('k3');
+            
+            const rect1 = elem1.getBoundingClientRect();
+            const rect2 = elem2.getBoundingClientRect();
+            const rect3 = elem3.getBoundingClientRect();
+            
+            const style1 = getComputedStyle(elem1);
+            const style2 = getComputedStyle(elem2);
+            const style3 = getComputedStyle(elem3);
+            
+            // Extract RGB values and positions
+            const r1 = parseInt(style1.backgroundColor.match(/\d+/g)[0]);
+            const g1 = parseInt(style1.backgroundColor.match(/\d+/g)[1]);
+            const b1 = parseInt(style1.backgroundColor.match(/\d+/g)[2]);
+            
+            const r2 = parseInt(style2.backgroundColor.match(/\d+/g)[0]);
+            const g2 = parseInt(style2.backgroundColor.match(/\d+/g)[1]);
+            const b2 = parseInt(style2.backgroundColor.match(/\d+/g)[2]);
+            
+            const r3 = parseInt(style3.backgroundColor.match(/\d+/g)[0]);
+            const g3 = parseInt(style3.backgroundColor.match(/\d+/g)[1]);
+            const b3 = parseInt(style3.backgroundColor.match(/\d+/g)[2]);
+            
+            // Combine position and color data
+            const key = [
+                Math.floor(rect1.left) ^ r1,
+                Math.floor(rect1.top) ^ g1,
+                Math.floor(rect2.right) ^ b1,
+                Math.floor(rect2.bottom) ^ r2,
+                Math.floor(rect3.left) ^ g2,
+                Math.floor(rect3.top) ^ b2,
+                r3, g3, b3
+            ];
+            
+            return key;
+        }
+
+        // Simulate WebAssembly crypto (actually pure JS)
+        class CryptoEngine {
+            constructor() {
+                this.initialized = false;
+                this.wasmMemory = new Uint8Array(1024);
+                this.initWasm();
+            }
+
+            async initWasm() {
+                // Simulate WASM loading delay
+                await new Promise(resolve => setTimeout(resolve, 100));
+                this.initialized = true;
+                console.log("🔧 WebAssembly crypto engine initialized");
+            }
+
+            // Custom encryption algorithm
+            encrypt(data, key) {
+                if (!this.initialized) throw new Error("WASM not initialized");
+                
+                const dataBytes = new TextEncoder().encode(data);
+                const keyBytes = new Uint8Array(key);
+                const result = new Uint8Array(dataBytes.length);
+                
+                for (let i = 0; i < dataBytes.length; i++) {
+                    // Complex transformation using multiple key bytes
+                    let byte = dataBytes[i];
+                    byte ^= keyBytes[i % keyBytes.length];
+                    byte = ((byte << 3) | (byte >> 5)) & 0xFF; // Rotate bits
+                    byte ^= keyBytes[(i + 1) % keyBytes.length];
+                    byte = (~byte + keyBytes[(i + 2) % keyBytes.length]) & 0xFF;
+                    result[i] = byte;
+                }
+                
+                return Array.from(result).map(b => b.toString(16).padStart(2, '0')).join('');
+            }
+
+            decrypt(encryptedHex, key) {
+                if (!this.initialized) throw new Error("WASM not initialized");
+                
+                const encryptedBytes = new Uint8Array(encryptedHex.match(/.{2}/g).map(h => parseInt(h, 16)));
+                const keyBytes = new Uint8Array(key);
+                const result = new Uint8Array(encryptedBytes.length);
+                
+                for (let i = 0; i < encryptedBytes.length; i++) {
+                    // Reverse the encryption process
+                    let byte = encryptedBytes[i];
+                    byte = (byte - keyBytes[(i + 2) % keyBytes.length] + 256) & 0xFF;
+                    byte = ~byte & 0xFF;
+                    byte ^= keyBytes[(i + 1) % keyBytes.length];
+                    byte = ((byte >> 3) | (byte << 5)) & 0xFF; // Reverse rotate
+                    byte ^= keyBytes[i % keyBytes.length];
+                    result[i] = byte;
+                }
+                
+                return new TextDecoder().decode(result);
+            }
+        }
+
+        const cryptoEngine = new CryptoEngine();
+        let storedData = null;
+
+        // The encrypted flag (players need to figure out how to decrypt this)
+        const encryptedFlag = "4a5b2c7d8e9f1a2b3c4d5e6f7a8b9c1d2e3f4a5b6c7d8e9f1a2b3c4d5e6f";
+
+        async function encryptData() {
+            try {
+                const website = document.getElementById('website').value;
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                const notes = document.getElementById('notes').value;
+                
+                if (!website || !username || !password) {
+                    alert('Please fill in all required fields');
+                    return;
+                }
+                
+                // Generate encryption key from DOM elements
+                const domKey = getDOMKey();
+                const fingerprint = getCanvasFingerprint();
+                const timestamp = Math.floor(Date.now() / 10000); // Reduce precision
+                
+                // Combine all entropy sources
+                const combinedKey = [...domKey, ...Array.from(new TextEncoder().encode(fingerprint.slice(0, 8))), timestamp & 0xFF];
+                
+                const dataToEncrypt = JSON.stringify({
+                    website, username, password, notes,
+                    timestamp: Date.now()
+                });
+                
+                const encrypted = cryptoEngine.encrypt(dataToEncrypt, combinedKey);
+                storedData = { encrypted, key: combinedKey };
+                
+                document.getElementById('result').style.display = 'block';
+                document.getElementById('result').innerHTML = `
+                    <strong>Encrypted Data:</strong><br>
+                    ${encrypted}<br><br>
+                    <strong>Encryption Key Hash:</strong><br>
+                    ${Array.from(combinedKey).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 32)}...
+                `;
+                
+                document.getElementById('status').textContent = 'Data encrypted successfully!';
+                
+                // Easter egg for the real challenge
+                if (website.toLowerCase() === 'ctf' && username.toLowerCase() === 'admin') {
+                    console.log('🎯 CTF Mode detected! Decrypting hidden flag...');
+                    try {
+                        const flag = cryptoEngine.decrypt(encryptedFlag, combinedKey);
+                        console.log('🏁 FLAG:', flag);
+                        document.getElementById('result').innerHTML += `<br><br><strong style="color: red;">FLAG DECRYPTED:</strong><br>${flag}`;
+                    } catch (e) {
+                        console.log('❌ Flag decryption failed. Check your key derivation.');
+                    }
+                }
+                
+            } catch (error) {
+                document.getElementById('status').textContent = 'Encryption failed: ' + error.message;
+            }
+        }
+
+        function decryptData() {
+            if (!storedData) {
+                alert('No encrypted data found. Please encrypt some data first.');
+                return;
+            }
+            
+            try {
+                const decrypted = cryptoEngine.decrypt(storedData.encrypted, storedData.key);
+                const data = JSON.parse(decrypted);
+                
+                document.getElementById('result').style.display = 'block';
+                document.getElementById('result').innerHTML = `
+                    <strong>Decrypted Data:</strong><br>
+                    Website: ${data.website}<br>
+                    Username: ${data.username}<br>
+                    Password: ${data.password}<br>
+                    Notes: ${data.notes}<br>
+                    Stored: ${new Date(data.timestamp).toLocaleString()}
+                `;
+                
+                document.getElementById('status').textContent = 'Data decrypted successfully!';
+                
+            } catch (error) {
+                document.getElementById('status').textContent = 'Decryption failed: ' + error.message;
+                document.getElementById('result').style.display = 'block';
+                document.getElementById('result').innerHTML = '<strong style="color: red;">Decryption Error:</strong> Invalid key or corrupted data';
+            }
+        }
+
+        // Initialize
+        window.addEventListener('load', () => {
+            document.getElementById('status').textContent = 'WebAssembly crypto engine loaded. Ready to secure your data.';
+            
+            // Hide the real flag in the encrypted constant
+            const realFlag = "CTF{W3bA55embly_D0M_Cryp70_M45ter_2024}";
+            // This is what's actually stored in encryptedFlag above, encrypted with specific DOM key
+            // Players need to: 1) Understand the key derivation, 2) Reverse the crypto, 3) Use website="ctf" username="admin"
+        });
+
+        // Additional obfuscation
+        const obfuscatedHints = [
+            "Look at the DOM elements with specific positions and colors",
+            "The key combines element positions, RGB values, and XOR operations", 
+            "Try website='ctf' and username='admin' to unlock the real challenge",
+            "Canvas fingerprinting adds entropy to the key derivation",
+            "The encryption uses bit rotation and multiple XOR operations"
+        ];
+        
+        // Hide hints in console
+        setTimeout(() => {
+            if (!devToolsOpen) {
+                console.log("💡 Hints for the challenge:");
+                obfuscatedHints.forEach((hint, i) => {
+                    console.log(`${i + 1}. ${hint}`);
+                });
+            }
+        }, 5000);
+    </script>
+</body>
+</html>
